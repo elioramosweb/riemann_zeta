@@ -67,6 +67,11 @@ const fragmentShader = `
     
         float lyap = smoothstep(-1.0, 0.8, lyapunov(uv));
         vec3 col = hotPalette(lyap);
+        float dist = distance(col,vec3(0.0));
+        if (dist < 0.2)
+        {
+          col = vec3(0.0);
+        }
         gl_FragColor = vec4(col, 1.0);
     }
 `
