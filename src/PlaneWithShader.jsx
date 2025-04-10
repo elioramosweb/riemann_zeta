@@ -81,7 +81,7 @@ export default function SphereWithShader() {
   })
 
   return (
-    <mesh>
+    <mesh position={[0,0,0]}>
       <planeGeometry args={[5, 5,64, 64]} />
       <shaderMaterial
         ref={shaderRef}
