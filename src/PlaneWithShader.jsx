@@ -1,8 +1,24 @@
-import { useRef,useEffect} from 'react'
+import { useRef,useEffect,useMemo} from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ShaderMaterial } from 'three'
 import { DoubleSide } from 'three'
 import { GUI } from 'dat.gui'
+import { ParametricGeometry } from 'three/examples/jsm/geometries/ParametricGeometry.js'
+
+function mobius(u, t, target) {
+  // u ∈ [0, 1], t ∈ [0, 1]
+  u *= Math.PI * 2
+  t = (t - 0.5) * 1// rango [-1, 1]
+
+  const major = 1.0
+  const a = 0.5
+
+  const x = Math.cos(u) * (major + t * Math.cos(u / 2))
+  const y = Math.sin(u) * (major + t * Math.cos(u / 2))
+  const z = t * Math.sin(u / 2)
+
+  target.set(x, y, z)
+}
 
 const vertexShader = `
     uniform float uTime;
@@ -65,6 +81,7 @@ const fragmentShader = `
         return sum;
     }
 
+
     vec2 cx_log(vec2 a) {
       vec2 polar = as_polar(a);
       float rpart = polar.x;
@@ -88,18 +105,18 @@ const fragmentShader = `
       uv *= uZoom;
       uv.x += uDisplaceX;
       uv.y += uDisplaceY;
-      uv.x *= 0.15;
+      uv.x *= 0.025;
       //uv.x += uTime * 0.1;
-      uv.y -= uTime*0.1;
+      uv.y -= uTime*2.0;
       //uv.y = abs(uv.y);
-      vec2 sum = riemann_zeta_series(uv);
+      vec2 sum = (riemann_zeta_series(uv));
       float mag   = length(sum); 
       float phase = atan(sum.y,sum.x);
       vec3 col1 = palette(phase);
       vec3 col2 = palette(mag);
       vec3 col = mix(col1,col2,uMagPhase);
       //float d = length(uv);
-      if (uv.x < 0.5)
+      if (uv.x < 0.)
       {
         col = vec3(0.);
       }
@@ -123,9 +140,9 @@ const fragmentShader = `
       const gui = new GUI()
       const uniforms = shaderRef.current.uniforms
   
-      gui.add(uniforms.uZoom, 'value', 0.1, 10.0, 0.01).name('Zoom')
-      gui.add(uniforms.uDisplaceX, 'value', -5.0, 10.0, 0.01).name('Desplazamiento X')
-      gui.add(uniforms.uDisplaceY, 'value', -5.0, 10.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uZoom, 'value', 0.1, 100.0, 0.01).name('Zoom')
+      gui.add(uniforms.uDisplaceX, 'value', -5.0, 50.0, 0.01).name('Desplazamiento X')
+      gui.add(uniforms.uDisplaceY, 'value', -5.0, 50.0, 0.01).name('Desplazamiento Y')
       gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.01).name('MagPhase')
   
       // Limpia la GUI al desmontar el componente
@@ -134,23 +151,51 @@ const fragmentShader = `
       }
     }, [])
 
-  return (
-    <mesh position={[0,0,0]}>
-       <cylinderGeometry args={[1, 1, 1, 64, 1, true]} />
-      {/* <planeGeometry args={[20, 2,64,64]} /> */}
-      <shaderMaterial
-        ref={shaderRef}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        uniforms={{
-          uTime: { value: 0 },
-          uZoom:{value: 1.0},
-          uDisplaceX:{value:1.0},
-          uDisplaceY:{value:0.65},
-          uMagPhase:{value:0.},
-        }}
-        side={DoubleSide}
-      />
-    </mesh>
-  )
+
+    function MobiusStrip() {
+      const geometry = useMemo(() => {
+        return new ParametricGeometry(mobius, 100, 20)
+      }, [])
+    
+      return (
+        <mesh geometry={geometry}>
+          <meshStandardMaterial color="orange" side={DoubleSide} />
+          <shaderMaterial
+         ref={shaderRef}
+         vertexShader={vertexShader}
+         fragmentShader={fragmentShader}
+         uniforms={{
+           uTime: { value: 0 },
+           uZoom:{value: 60.53},
+           uDisplaceX:{value:46.16},
+           uDisplaceY:{value:-5},
+           uMagPhase:{value:1.},
+         }}
+         side={DoubleSide}
+       />
+        </mesh>
+      )
+    }
+
+
+    return (MobiusStrip())
+
+  // return (
+  //   <mesh position={[0,0,0]}>
+  //     <cylinderGeometry args={[1, 1, 1, 64, 1, true]} /> 
+  //     <shaderMaterial
+  //       ref={shaderRef}
+  //       vertexShader={vertexShader}
+  //       fragmentShader={fragmentShader}
+  //       uniforms={{
+  //         uTime: { value: 0 },
+  //         uZoom:{value: 1.0},
+  //         uDisplaceX:{value:1.0},
+  //         uDisplaceY:{value:0.65},
+  //         uMagPhase:{value:0.},
+  //       }}
+  //       side={DoubleSide}
+  //     />
+  //   </mesh>
+  // )
 }
