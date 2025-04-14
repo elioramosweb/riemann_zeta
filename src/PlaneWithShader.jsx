@@ -8,7 +8,7 @@ import { ParametricGeometry } from 'three/examples/jsm/geometries/ParametricGeom
 function mobius(u, t, target) {
   // u ∈ [0, 1], t ∈ [0, 1]
   u *= Math.PI * 2
-  t = (t - 0.5) * 1// rango [-1, 1]
+  t = (t - 0.5) * 0.5// rango [-1, 1]
 
   const major = 1.0
   const a = 0.5
@@ -109,14 +109,18 @@ const fragmentShader = `
       //uv.x += uTime * 0.1;
       uv.y -= uTime*2.0;
       //uv.y = abs(uv.y);
-      vec2 sum = (riemann_zeta_series(uv));
+      vec2 sum = riemann_zeta_series(uv);
       float mag   = length(sum); 
       float phase = atan(sum.y,sum.x);
       vec3 col1 = palette(phase);
       vec3 col2 = palette(mag);
       vec3 col = mix(col1,col2,uMagPhase);
       //float d = length(uv);
-      if (uv.x < 0.)
+      // if (uv.x < 0.)
+      // {
+      //   col = vec3(0.);
+      // }
+      if (sum.y == 0.0)
       {
         col = vec3(0.);
       }
