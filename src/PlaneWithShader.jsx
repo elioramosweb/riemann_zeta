@@ -1,11 +1,16 @@
-// SphereWithShader.jsx
-import { useRef } from 'react'
+import { useRef,useEffect} from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ShaderMaterial } from 'three'
 import { DoubleSide } from 'three'
+import { GUI } from 'dat.gui'
 
 const vertexShader = `
     uniform float uTime;
+    uniform float uZoom;
+    uniform float uDisplaceX;
+    uniform float uDisplaceY;
+    uniform float uMagPhase;
+
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vUv;
@@ -19,64 +24,84 @@ const vertexShader = `
 `
 
 const fragmentShader = `
+
     #define ITERATIONS 500.
     #define PI 3.141592653589793
-    #define NMAX 1000
-    
+
     uniform float uTime;
+    uniform float uZoom;
+    uniform float uDisplaceX;
+    uniform float uDisplaceY;
+    uniform float uMagPhase;
+  
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vUv;
 
-    
-    float rand(float n){return fract(sin(n) * 43758.5453123);}
-
-    float noise(float p){
-      float fl = floor(p);
-      float fc = fract(p);
-      return mix(rand(fl), rand(fl + 1.0), fc);
+    float map(float value, float min1, float max1, float min2, float max2) {
+      return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
     }
 
-    vec3 hotPalette(float t) {
-            float r = smoothstep(0.0, 0.5, t); 
-            float g = smoothstep(0.25, 0.75, t); 
-            float b = smoothstep(0.5, 1.0, t);
-            float intensity = mix(0.50, 1.0, t);
-            return vec3(r * intensity, g * intensity, b * intensity);
+
+
+    vec2 as_polar(vec2 z) {
+      return vec2(
+        length(z),
+        atan(z.y, z.x)
+      );
     }
-    
-    float lyapunov(vec2 coord) {
-        float x = 0.5;
-        float sum = 0.0;
-        for(int i = 0; i < NMAX; i++) {
-            int pos = int(mod(float(i),5.));
-            float p = (pos == 0 || pos == 3 || pos == 0) ? 1.0 : 0.0;
-            float r = mix(coord.x,coord.y,p);
-                    x = r * x *(1.0 - x);
-            sum += log(abs(r - 2.0 * r * x));
+
+    vec3 palette(float t) {
+        return 0.5 + 0.5 * sin(6.28318 * (t + vec3(0.1, 0.3, 0.5)));
+    }
+
+    vec2 riemann_zeta_series(vec2 s) {
+        vec2 sum = vec2(0.0);
+        for (float n = 1.0; n < ITERATIONS; n += 1.0) {
+            float term = pow(n, -s.x); // n^(-x)
+            float angle = -s.y * log(n);
+            sum += term * vec2(cos(angle), sin(angle)); // Parte real e imaginaria
         }
-        return sum/float(NMAX);
+        return sum;
+    }
+
+    vec2 cx_log(vec2 a) {
+      vec2 polar = as_polar(a);
+      float rpart = polar.x;
+      float ipart = polar.y;
+      if (ipart > PI) ipart = ipart - (2.0 * PI);
+      return vec2(log(rpart), ipart);
+    }
+
+    vec2 g(vec2 f)
+    {
+      return ceil(cx_log(f)) - log(abs(f)); 
+    }
+
+    mat2 rotate2d(float a) {
+      return mat2(cos(a), -sin(a), sin(a), cos(a));
     }
 
     void main() {
-
-        vec2 uv = vUv;
-
-        uv.x += 2.98 - 0.255;
-        uv.y += 3.03 - 0.054;
-    
-        float lyap = smoothstep(-1.0, 0.8, lyapunov(uv));
-        vec3 col = hotPalette(lyap);
-        float dist = distance(col,vec3(0.0));
-        if (dist < 0.2)
-        {
-          col = vec3(0.0);
-        }
-        gl_FragColor = vec4(col, 1.0);
+      vec2 uv = vUv - 0.5;
+      uv = vec2(abs(uv.y),uv.x);
+      uv *= uZoom;
+      uv.x += uDisplaceX;
+      uv.y += uDisplaceY;
+      uv.y -= uTime*0.1;
+      //uv.y = abs(uv.y);
+      vec2 sum = riemann_zeta_series(uv);
+      float mag   = length(sum); 
+      float phase = atan(sum.y,sum.x);
+      vec3 col1 = palette(phase);
+      vec3 col2 = palette(mag);
+      vec3 col = mix(col1,col2,uMagPhase);
+      //float d = length(uv);
+      gl_FragColor = vec4(col, 1.0);
     }
 `
 
-export default function SphereWithShader() {
+  export default function PlaneWithShader() {
   const shaderRef = useRef();
 
   useFrame(({ clock }) => {
@@ -85,15 +110,37 @@ export default function SphereWithShader() {
     }
   })
 
+    // Añade GUI una sola vez al montar
+    useEffect(() => {
+      if (!shaderRef.current) return
+  
+      const gui = new GUI()
+      const uniforms = shaderRef.current.uniforms
+  
+      gui.add(uniforms.uZoom, 'value', 0.1, 5.0, 0.01).name('Zoom')
+      gui.add(uniforms.uDisplaceX, 'value', -5.0, 5.0, 0.01).name('Desplazamiento X')
+      gui.add(uniforms.uDisplaceY, 'value', -5.0, 5.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.01).name('MagPhase')
+  
+      // Limpia la GUI al desmontar el componente
+      return () => {
+        gui.destroy()
+      }
+    }, [])
+
   return (
     <mesh position={[0,0,0]}>
-      <planeGeometry args={[5, 5,64, 64]} />
+      <planeGeometry args={[20, 5,64,64]} />
       <shaderMaterial
         ref={shaderRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         uniforms={{
-          uTime: { value: 0 }
+          uTime: { value: 0 },
+          uZoom:{value: 1.0},
+          uDisplaceX:{value:1.0},
+          uDisplaceY:{value:0.65},
+          uMagPhase:{value:0.},
         }}
         side={DoubleSide}
       />
