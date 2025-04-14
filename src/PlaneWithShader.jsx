@@ -84,10 +84,12 @@ const fragmentShader = `
 
     void main() {
       vec2 uv = vUv - 0.5;
-      uv = vec2(abs(uv.y),uv.x);
+      uv = vec2(uv.y,uv.x);
       uv *= uZoom;
       uv.x += uDisplaceX;
       uv.y += uDisplaceY;
+      uv.x *= 0.15;
+      //uv.x += uTime * 0.1;
       uv.y -= uTime*0.1;
       //uv.y = abs(uv.y);
       vec2 sum = riemann_zeta_series(uv);
@@ -97,6 +99,10 @@ const fragmentShader = `
       vec3 col2 = palette(mag);
       vec3 col = mix(col1,col2,uMagPhase);
       //float d = length(uv);
+      if (uv.x < 0.5)
+      {
+        col = vec3(0.);
+      }
       gl_FragColor = vec4(col, 1.0);
     }
 `
@@ -117,9 +123,9 @@ const fragmentShader = `
       const gui = new GUI()
       const uniforms = shaderRef.current.uniforms
   
-      gui.add(uniforms.uZoom, 'value', 0.1, 5.0, 0.01).name('Zoom')
-      gui.add(uniforms.uDisplaceX, 'value', -5.0, 5.0, 0.01).name('Desplazamiento X')
-      gui.add(uniforms.uDisplaceY, 'value', -5.0, 5.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uZoom, 'value', 0.1, 10.0, 0.01).name('Zoom')
+      gui.add(uniforms.uDisplaceX, 'value', -5.0, 10.0, 0.01).name('Desplazamiento X')
+      gui.add(uniforms.uDisplaceY, 'value', -5.0, 10.0, 0.01).name('Desplazamiento Y')
       gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.01).name('MagPhase')
   
       // Limpia la GUI al desmontar el componente
@@ -130,7 +136,8 @@ const fragmentShader = `
 
   return (
     <mesh position={[0,0,0]}>
-      <planeGeometry args={[20, 5,64,64]} />
+       <cylinderGeometry args={[1, 1, 1, 64, 1, true]} />
+      {/* <planeGeometry args={[20, 2,64,64]} /> */}
       <shaderMaterial
         ref={shaderRef}
         vertexShader={vertexShader}
