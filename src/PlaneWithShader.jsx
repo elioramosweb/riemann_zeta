@@ -168,11 +168,11 @@ const fragmentShader = `
       //   baseColor = mix(vec3(0.0), baseColor, 0.0); // se ve negro
       // }
 
-      // if (length(sum) < epsilon) {
-      //     float d = length(uv - vec2(0.5, 0.6)); // ejemplo: distancia a cero esperado
-      //     float highlight = smoothstep(0.02, 0.0, d);
-      //     baseColor = mix(baseColor, vec3(1.0, 1.0, 0.0), highlight);
-      // }
+      if (length(sum) < epsilon) {
+          float d = length(uv - vec2(0.5, 10.0)); // ejemplo: distancia a cero esperado
+          float highlight = smoothstep(0.02, 0.0, d);
+          baseColor = mix(baseColor, vec3(0.0, 1.0, 0.0), highlight);
+      }
 
       gl_FragColor = vec4(baseColor, 1.0);
     }
@@ -208,52 +208,54 @@ const fragmentShader = `
     }, [])
 
 
-    function MobiusStrip() {
-      const geometry = useMemo(() => {
-        return new ParametricGeometry(mobius, 100, 20)
-      }, [])
+    // function MobiusStrip() {
+    //   const geometry = useMemo(() => {
+    //     return new ParametricGeometry(mobius, 100, 20)
+    //   }, [])
     
-      return (
-        <mesh geometry={geometry}>
-          <meshStandardMaterial color="orange" side={DoubleSide} />
-          <shaderMaterial
-         ref={shaderRef}
-         vertexShader={vertexShader}
-         fragmentShader={fragmentShader}
-         uniforms={{
-           uTime: { value: 0 },
-           uZoom:{value: 45.37},
-           uDisplaceX:{value:36.89},
-           uDisplaceY:{value:65.34},
-           uScaleX:{value:0.02},
-           uScaleY:{value:0.2},
-           uMagPhase:{value:1.},
-         }}
-         side={DoubleSide}
-       />
-        </mesh>
-      )
-    }
+    //   return (
+    //     <mesh geometry={geometry}>
+    //       <meshStandardMaterial color="orange" side={DoubleSide} />
+    //       <shaderMaterial
+    //      ref={shaderRef}
+    //      vertexShader={vertexShader}
+    //      fragmentShader={fragmentShader}
+    //      uniforms={{
+    //        uTime: { value: 0 },
+    //        uZoom:{value: 45.37},
+    //        uDisplaceX:{value:36.89},
+    //        uDisplaceY:{value:65.34},
+    //        uScaleX:{value:0.02},
+    //        uScaleY:{value:0.2},
+    //        uMagPhase:{value:1.},
+    //      }}
+    //      side={DoubleSide}
+    //    />
+    //     </mesh>
+    //   )
+    // }
 
 
-    return (MobiusStrip())
+    //return (MobiusStrip())
 
-  // return (
-  //   <mesh position={[0,0,0]}>
-  //     <cylinderGeometry args={[1, 1, 1, 64, 1, true]} /> 
-  //     <shaderMaterial
-  //       ref={shaderRef}
-  //       vertexShader={vertexShader}
-  //       fragmentShader={fragmentShader}
-  //       uniforms={{
-  //         uTime: { value: 0 },
-  //         uZoom:{value: 1.0},
-  //         uDisplaceX:{value:1.0},
-  //         uDisplaceY:{value:0.65},
-  //         uMagPhase:{value:0.},
-  //       }}
-  //       side={DoubleSide}
-  //     />
-  //   </mesh>
-  // )
+  return (
+    <mesh position={[0,0,0]}>
+      <cylinderGeometry args={[1, 1, 1, 64, 1, true]} /> 
+      <shaderMaterial
+        ref={shaderRef}
+        vertexShader={vertexShader}
+        fragmentShader={fragmentShader}
+        uniforms={{
+          uTime: { value: 0 },
+          uZoom:{value: 1.0},
+          uDisplaceX:{value:1.0},
+          uDisplaceY:{value:0.65},
+          uMagPhase:{value:0.},
+          uScaleX:{value:0.02},
+          uScaleY:{value:0.2},
+        }}
+        side={DoubleSide}
+      />
+    </mesh>
+  )
 }
