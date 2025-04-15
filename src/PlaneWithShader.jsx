@@ -8,7 +8,7 @@ import { ParametricGeometry } from 'three/examples/jsm/geometries/ParametricGeom
 function mobius(u, t, target) {
   // u ∈ [0, 1], t ∈ [0, 1]
   u *= Math.PI * 2
-  t = (t - 0.5) * 0.5// rango [-1, 1]
+  t = (t - 0.5) * 2// rango [-1, 1]
 
   const major = 1.0
   const a = 0.5
@@ -25,11 +25,14 @@ const vertexShader = `
     uniform float uZoom;
     uniform float uDisplaceX;
     uniform float uDisplaceY;
+    uniform float uScaleX;
+    uniform float uScaleY;
     uniform float uMagPhase;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vUv;
+
     void main() {
         vNormal = normal;
         vPosition = position;
@@ -48,6 +51,8 @@ const fragmentShader = `
     uniform float uZoom;
     uniform float uDisplaceX;
     uniform float uDisplaceY;
+    uniform float uScaleX;
+    uniform float uScaleY;
     uniform float uMagPhase;
   
     varying vec3 vNormal;
@@ -99,34 +104,79 @@ const fragmentShader = `
       return mat2(cos(a), -sin(a), sin(a), cos(a));
     }
 
+    vec3 applyLighting(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir) {
+      vec3 ambient = 0.5 * color;
+
+      // Difusa (Lambert)
+      float diff = max(dot(normal, lightDir), 0.0);
+      vec3 diffuse = diff * color;
+
+      // Especular (Phong)
+      vec3 reflectDir = reflect(-lightDir, normal);
+      float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
+      vec3 specular = spec * vec3(1.0);
+
+      return ambient + diffuse + specular;
+    }
+
+
     void main() {
       vec2 uv = vUv - 0.5;
-      uv = vec2(uv.y,uv.x);
+      uv = vec2(uv.y, uv.x);
       uv *= uZoom;
       uv.x += uDisplaceX;
       uv.y += uDisplaceY;
-      uv.x *= 0.025;
-      //uv.x += uTime * 0.1;
-      uv.y -= uTime*2.0;
-      //uv.y = abs(uv.y);
+      uv.x = uv.x*uScaleX;
+      //uv.y = uv.y*uScaleX;
+      uv.y += uTime * uScaleY;
+
+
       vec2 sum = riemann_zeta_series(uv);
-      float mag   = length(sum); 
-      float phase = atan(sum.y,sum.x);
+      float mag = length(sum); 
+      float phase = atan(sum.y, sum.x);
+
       vec3 col1 = palette(phase);
       vec3 col2 = palette(mag);
-      vec3 col = mix(col1,col2,uMagPhase);
-      //float d = length(uv);
-      // if (uv.x < 0.)
-      // {
-      //   col = vec3(0.);
-      // }
-      if (sum.y == 0.0)
-      {
-        col = vec3(0.);
+      vec3 baseColor = mix(col1, col2, uMagPhase);
+
+      if (sum.y == 0.0) {
+        baseColor = vec3(0.0);
       }
-      gl_FragColor = vec4(col, 1.0);
+
+      // Luz y vista
+      vec3 normal = normalize(vNormal);
+      vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+      vec3 viewDir = normalize(-vPosition);
+
+      vec3 finalColor = applyLighting(baseColor, normal, lightDir, viewDir);
+
+      if (abs(uv.x - 0.5) < 0.005) {
+        baseColor = mix(baseColor, vec3(0.0, 1.0, 0.0), 0.7); // verde para la línea crítica
+      }
+
+      float epsilon = 0.01;
+      float radius = 10.0;
+
+      // if (length(sum) < epsilon) {
+      //   // Dibuja un círculo suave centrado en el punto actual del fragmento
+      //   float d = length(uv - vec2(uv.x, uv.y)); // es 0, porque estás justo en ese punto
+
+      //   // Así que simplemente usamos distancia radial desde el centro
+      //   float circle = smoothstep(radius, radius * 0.6, 0.0); // = 0
+
+      //   // Para que el círculo se vea alrededor del punto:
+      //   baseColor = mix(vec3(0.0), baseColor, 0.0); // se ve negro
+      // }
+
+      // if (length(sum) < epsilon) {
+      //     float d = length(uv - vec2(0.5, 0.6)); // ejemplo: distancia a cero esperado
+      //     float highlight = smoothstep(0.02, 0.0, d);
+      //     baseColor = mix(baseColor, vec3(1.0, 1.0, 0.0), highlight);
+      // }
+
+      gl_FragColor = vec4(baseColor, 1.0);
     }
-`
+  `
 
   export default function PlaneWithShader() {
   const shaderRef = useRef();
@@ -145,8 +195,10 @@ const fragmentShader = `
       const uniforms = shaderRef.current.uniforms
   
       gui.add(uniforms.uZoom, 'value', 0.1, 100.0, 0.01).name('Zoom')
-      gui.add(uniforms.uDisplaceX, 'value', -5.0, 50.0, 0.01).name('Desplazamiento X')
-      gui.add(uniforms.uDisplaceY, 'value', -5.0, 50.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uDisplaceX, 'value', -5.0, 100.0, 0.01).name('Desplazamiento X')
+      gui.add(uniforms.uDisplaceY, 'value', -5.0, 100.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uScaleX, 'value', 0.0, 1.0, 0.001).name('Escala X')
+      gui.add(uniforms.uScaleY, 'value', 0.0, 1.0, 0.001).name('Escala Y')
       gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.01).name('MagPhase')
   
       // Limpia la GUI al desmontar el componente
@@ -170,9 +222,11 @@ const fragmentShader = `
          fragmentShader={fragmentShader}
          uniforms={{
            uTime: { value: 0 },
-           uZoom:{value: 60.53},
-           uDisplaceX:{value:46.16},
-           uDisplaceY:{value:-5},
+           uZoom:{value: 45.37},
+           uDisplaceX:{value:36.89},
+           uDisplaceY:{value:65.34},
+           uScaleX:{value:0.02},
+           uScaleY:{value:0.2},
            uMagPhase:{value:1.},
          }}
          side={DoubleSide}
