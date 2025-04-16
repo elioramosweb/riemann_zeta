@@ -28,6 +28,7 @@ const vertexShader = `
     uniform float uScaleX;
     uniform float uScaleY;
     uniform float uMagPhase;
+    uniform float uSpeed;
 
     varying vec3 vNormal;
     varying vec3 vPosition;
@@ -54,6 +55,7 @@ const fragmentShader = `
     uniform float uScaleX;
     uniform float uScaleY;
     uniform float uMagPhase;
+    uniform float uSpeed;
   
     varying vec3 vNormal;
     varying vec3 vPosition;
@@ -128,7 +130,7 @@ const fragmentShader = `
       uv.y += uDisplaceY;
       uv.x = uv.x*uScaleX;
       //uv.y = uv.y*uScaleX;
-      uv.y += uTime * uScaleY;
+      uv.y -= uSpeed*uTime * uScaleY;
 
 
       vec2 sum = riemann_zeta_series(uv);
@@ -152,6 +154,11 @@ const fragmentShader = `
 
       if (abs(uv.x - 0.5) < 0.005) {
         baseColor = mix(baseColor, vec3(0.0, 1.0, 0.0), 0.7); // verde para la línea crítica
+      }
+
+      if(uv.x < 0.25)
+      {
+         baseColor = vec3(0.0);
       }
 
       float epsilon = 0.01;
@@ -194,19 +201,19 @@ const fragmentShader = `
       const gui = new GUI()
       const uniforms = shaderRef.current.uniforms
   
-      gui.add(uniforms.uZoom, 'value', 0.1, 100.0, 0.01).name('Zoom')
-      gui.add(uniforms.uDisplaceX, 'value', -5.0, 100.0, 0.01).name('Desplazamiento X')
-      gui.add(uniforms.uDisplaceY, 'value', -5.0, 100.0, 0.01).name('Desplazamiento Y')
+      gui.add(uniforms.uZoom, 'value', 0.1, 100.0, 0.001).name('Zoom')
+      gui.add(uniforms.uDisplaceX, 'value', -5.0, 100.0, 0.001).name('Desplazamiento X')
+      gui.add(uniforms.uDisplaceY, 'value', -5.0, 100.0, 0.001).name('Desplazamiento Y')
       gui.add(uniforms.uScaleX, 'value', 0.0, 1.0, 0.001).name('Escala X')
       gui.add(uniforms.uScaleY, 'value', 0.0, 1.0, 0.001).name('Escala Y')
-      gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.01).name('MagPhase')
+      gui.add(uniforms.uMagPhase, 'value', 0.0, 1.0, 0.001).name('MagPhase')
+      gui.add(uniforms.uSpeed, 'value', 0.0, 1.0, 0.001).name('Speed')
   
       // Limpia la GUI al desmontar el componente
       return () => {
         gui.destroy()
       }
     }, [])
-
 
     // function MobiusStrip() {
     //   const geometry = useMemo(() => {
@@ -238,24 +245,45 @@ const fragmentShader = `
 
     //return (MobiusStrip())
 
-  return (
-    <mesh position={[0,0,0]}>
-      <cylinderGeometry args={[1, 1, 1, 64, 1, true]} /> 
-      <shaderMaterial
-        ref={shaderRef}
-        vertexShader={vertexShader}
-        fragmentShader={fragmentShader}
-        uniforms={{
-          uTime: { value: 0 },
-          uZoom:{value: 1.0},
-          uDisplaceX:{value:1.0},
-          uDisplaceY:{value:0.65},
-          uMagPhase:{value:0.},
-          uScaleX:{value:0.02},
-          uScaleY:{value:0.2},
-        }}
-        side={DoubleSide}
-      />
-    </mesh>
-  )
+//   return (
+//     <mesh position={[0,0,0]}>
+//       <cylinderGeometry args={[1, 1, 1, 64, 1, true]} /> 
+//       <shaderMaterial
+//         ref={shaderRef}
+//         vertexShader={vertexShader}
+//         fragmentShader={fragmentShader}
+//         uniforms={{
+//           uTime: { value: 0 },
+//           uZoom:{value: 1.0},
+//           uDisplaceX:{value:1.0},
+//           uDisplaceY:{value:0.65},
+//           uMagPhase:{value:0.},
+//           uScaleX:{value:0.02},
+//           uScaleY:{value:0.2},
+//         }}
+//         side={DoubleSide}
+//       />
+//     </mesh>
+//   )
+return (
+  <mesh position={[0,0,0]}>
+    <planeGeometry args={[4,4,64,64]} /> 
+    <shaderMaterial
+      ref={shaderRef}
+      vertexShader={vertexShader}
+      fragmentShader={fragmentShader}
+      uniforms={{
+        uTime: { value: 0 },
+        uZoom:{value: 1.0},
+        uDisplaceX:{value:1.0},
+        uDisplaceY:{value:0.65},
+        uMagPhase:{value:0.},
+        uScaleX:{value:0.5},
+        uScaleY:{value:1},
+        uSpeed:{value:0.1},
+      }}
+      side={DoubleSide}
+    />
+  </mesh>
+)
 }
